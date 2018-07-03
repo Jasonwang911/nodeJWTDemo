@@ -64,6 +64,32 @@ app.post('/setup', function(req, res) {
   }
 })
 
+// 用户授权路径，返回的jwt的token验证用户名和密码
+app.post('/authenticate', function(req, res) {
+  User.findOne({
+    name: req.body.name
+  }, function(err, user) {
+    if(err) throw err;
+    if(!user) {
+      res.json({success: false, message: '未找到授权用户0'});
+    }else if(user) {
+      if(user.password != req.body.password) {
+        res.json({success: false, message: '用户密码错误'});
+      }else {
+        var token = jwt.sign(user, app.get('superSecret'), {
+          expiresIn: 60*60*24   // 授权24小时
+        });
+
+        res.json({
+          success: true,
+          message: '请使用您的授权码',
+          token: token
+        })
+      }
+    }
+  })
+})
+
 // app.use('/', indexRouter);
 // app.use('/users', usersRouter);
 
