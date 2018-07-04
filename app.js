@@ -47,6 +47,7 @@ app.get('/', function(req, res) {
 
 // steup 路径下简单写入用户数据，
 app.post('/setup', function(req, res) {
+  console.log(req.body)
   if(req.body.name && req.body.password) {
     var nick = new User({
       name: req.body.name,
@@ -64,34 +65,73 @@ app.post('/setup', function(req, res) {
   }
 })
 
-// 用户授权路径，返回的jwt的token验证用户名和密码
+// 用户授权路径，返回JWT 的 Token 验证用户名密码
 app.post('/authenticate', function(req, res) {
   User.findOne({
-    name: req.body.name
-  }, function(err, user) {
-    if(err) throw err;
-    if(!user) {
-      res.json({success: false, message: '未找到授权用户0'});
-    }else if(user) {
-      if(user.password != req.body.password) {
-        res.json({success: false, message: '用户密码错误'});
-      }else {
-        var token = jwt.sign(user, app.get('superSecret'), {
-          expiresIn: 60*60*24   // 授权24小时
-        });
+      name: req.body.name
+   }, function(err, user) {
+     console.log(user)
+      if (err) throw err;
+      if (!user) {
+        res.json({ success: false, message: '未找到授权用户' });
+      } else if (user) {
+         if (user.password != req.body.password) {
+          res.json({ success: false, message: '用户密码错误' });
+        } else {
+      var token = jwt.sign({name: user.name, password: user.password}, app.get('superSecret'), {
+        expiresIn: 60*60*24 // 授权时效24小时
+      });
+      res.json({
+            success: true,
+            message: '请使用您的授权码',
+            token: token
+      });
+    }   
+  }
+  });
+});
 
-        res.json({
-          success: true,
-          message: '请使用您的授权码',
-          token: token
-        })
-      }
-    }
+var apiRoutes = express.Router();
+
+apiRoutes.use(function(req, res, next) {
+  // 拿去token 数据
+  var token = req.body.token || req.query.token || req.headers['x-access-token'];
+  if(token) {
+      // 解码 token ( 验证secret和检查有效期（exp）)
+      jwt.verify(token, app.get('superSecret'), function(err, decoded) {
+          if(err) {
+              return res.json({success: false, message: '无效的token'});
+          }else {
+              // 如果验证通过，在req中写入解密结果
+              req.decoded = decoded;
+              next(); // 继续下一步路由
+          }
+      })
+  }else {
+      // 没有拿到token返回错误
+      return res.status(401).send({
+          success: false,
+          message: '没有找到token'
+      })
+  }
+})
+
+
+// JWT验证后操作  API根路径返回内容
+apiRoutes.get('/', function(req, res) {
+  res.json({ message: req.decoded._doc.name + '欢迎使用API'});
+})
+
+// 获取所有用户数据
+apiRoutes.get('/users', function(req, res) {
+  User.find({}, function( err, users) {
+    res.json(users);
   })
 })
 
 // app.use('/', indexRouter);
 // app.use('/users', usersRouter);
+app.use('/api', apiRoutes)
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
