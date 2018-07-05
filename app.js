@@ -91,47 +91,52 @@ app.post('/authenticate', function(req, res) {
   });
 });
 
+//  localhost:端口号/api 路径路由定义
 var apiRoutes = express.Router();
 
 apiRoutes.use(function(req, res, next) {
-  // 拿去token 数据
+
+  // 拿取token 数据 按照自己传递方式写
   var token = req.body.token || req.query.token || req.headers['x-access-token'];
-  if(token) {
-      // 解码 token ( 验证secret和检查有效期（exp）)
-      jwt.verify(token, app.get('superSecret'), function(err, decoded) {
-          if(err) {
-              return res.json({success: false, message: '无效的token'});
-          }else {
-              // 如果验证通过，在req中写入解密结果
-              req.decoded = decoded;
-              next(); // 继续下一步路由
-          }
-      })
-  }else {
-      // 没有拿到token返回错误
-      return res.status(401).send({
-          success: false,
-          message: '没有找到token'
-      })
+  
+  if (token) {  	
+    // 解码 token (验证 secret 和检查有效期（exp）)
+    jwt.verify(token, app.get('superSecret'), function(err, decoded) {      
+
+      if (err) {
+        return res.json({ success: false, message: '无效的token.' });    
+      } else {
+        // 如果验证通过，在req中写入解密结果
+        req.decoded = decoded;  
+        //console.log(decoded)  ;
+        next(); //继续下一步路由
+      }
+    });
+  } else {
+    // 没有拿到token 返回错误 
+    return res.status(403).send({ 
+        success: false, 
+        message: '没有找到token.' 
+    });
+
   }
-})
+});
 
 
-// JWT验证后操作  API根路径返回内容
+
 apiRoutes.get('/', function(req, res) {
-  res.json({ message: req.decoded._doc.name + '欢迎使用API'});
-})
-
-// 获取所有用户数据
+  res.json({ message: req.decoded._doc.name+'  欢迎使用API' });
+});
+//获取所有用户数据
 apiRoutes.get('/users', function(req, res) {
-  User.find({}, function( err, users) {
+  User.find({}, function(err, users) {
     res.json(users);
-  })
-})
+  });
+});   
+// 注册API路由
+app.use('/api', apiRoutes);
 
-// app.use('/', indexRouter);
-// app.use('/users', usersRouter);
-app.use('/api', apiRoutes)
+app.use('/index', indexRouter);
 
 // catch 404 and forward to error handler
 app.use(function(req, res, next) {
